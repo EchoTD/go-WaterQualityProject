@@ -12,6 +12,7 @@ public:
     HTTPClient http;
     void setup(const char* ssid, const char* password);
     void sendData(const char* serverName, float data);
+    void echoPacket(const char* serverName, float data);
 
 private:
     SensorData _data;
