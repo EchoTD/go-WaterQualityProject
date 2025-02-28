@@ -28,13 +28,15 @@ void HTTPManager::sendData(const char* serverName, float data) {
         int httpResponse = http.POST(payload);
 
         if (httpResponse > 0) {
-            Serial.print("HTTP Response code: ");
-            Serial.println(httpResponse);
+        Serial.print("HTTP Response code: ");
+        Serial.println(httpResponse);
+        String response = http.getString();
+        Serial.println("Response: " + response);
         } else {
-            Serial.print("Error code: ");
-            Serial.println(httpResponse);
+        Serial.print("Error code: ");
+        Serial.println(httpResponse);
         }
-        http.end();
+    http.end();
     } else {
         Serial.println("WiFi not connected");
     }

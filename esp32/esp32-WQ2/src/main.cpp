@@ -28,10 +28,4 @@ void loop() {
     Serial.print(">temp_c:");
     Serial.println(data.temperature);
 
-    if ((millis() - lastTime) > timeDelay) {
-      if (WiFi.status() == WL_CONNECTED) {
-
-      }
-    }
-
 }
