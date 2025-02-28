@@ -11,7 +11,7 @@ unsigned long timeDelay = 1000;
 
 const char* ssid = "TurkTelekom_TP5000_2.4GHz";
 const char* password = "X3PHepLwN9Jc";
-const char* serverName = "http://192.168.1.111";
+const char* serverName = "http://192.168.1.111:8080";
 
 void setup() {
   Serial.begin(115200);
@@ -28,7 +28,7 @@ void loop() {
 
   Serial.print(">temp_c:");
   Serial.println(data.temperature);
-  
+
   if((millis() - lastTime) > timeDelay) {
     httpManager.echoPacket(serverName, data.temperature);
   }
