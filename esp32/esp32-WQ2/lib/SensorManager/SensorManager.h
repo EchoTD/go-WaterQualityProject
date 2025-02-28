@@ -6,8 +6,6 @@
 #include "OneWire.h"
 #include "DallasTemperature.h"
 
-class SensorManager;
-
 class SensorManager {
 public:
     SensorManager();
