@@ -6,8 +6,14 @@
 SensorManager sensorManager;
 HTTPManager httpManager;
 
-unsigned long lastTime = 0;
-unsigned long timeDelay = 1000;
+const unsigned long averagingInterval = 5000;
+const unsigned long sendingInterval = 5000;
+const int maxReadings = 10;
+
+float temperatureReadings[maxReadings];
+int readingIndex = 0;
+unsigned long lastAveragingTime = 0;
+unsigned long lastSendingTime = 0;
 
 const char* ssid = "TurkTelekom_TP5000_2.4GHz";
 const char* password = "X3PHepLwN9Jc";
@@ -19,17 +25,51 @@ void setup() {
 
   httpManager.setup(ssid, password);
 
+  for (int i = 0; i < maxReadings; i++) {
+    temperatureReadings[i] = 0.0f;
+  }
+
   Serial.println("System Initialized.");
 }
 
 void loop() {
-  sensorManager.update();
-  SensorData data = sensorManager.getSensorData();
+  unsigned long currentTime = millis();
 
-  Serial.print(">temp_c:");
-  Serial.println(data.temperature);
+  if (currentTime - lastAveragingTime >= averagingInterval / maxReadings) {
+    sensorManager.update();
+    SensorData data = sensorManager.getSensorData();
 
-  if((millis() - lastTime) > timeDelay) {
-    httpManager.echoPacket(serverName, data.temperature);
+    temperatureReadings[readingIndex] = data.temperature;
+    readingIndex = (readingIndex + 1) % maxReadings;  // Circular buffer logic
+
+    lastAveragingTime = currentTime;
+  }
+
+  if (currentTime - lastSendingTime >= sendingInterval) {
+    float sum = 0.0f;
+    int count = 0;
+
+    for (int i = 0; i < maxReadings; i++) {
+      if (temperatureReadings[i] != 0.0f) {
+        sum += temperatureReadings[i];
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      float averageTemperature = sum / count;
+
+      Serial.print(">avg_temp_c:");
+      Serial.println(averageTemperature);
+
+      httpManager.echoPacket(serverName, averageTemperature);
+
+      for (int i = 0; i < maxReadings; i++) {
+        temperatureReadings[i] = 0.0f;
+      }
+      readingIndex = 0;
+    }
+
+    lastSendingTime = currentTime;
   }
 }

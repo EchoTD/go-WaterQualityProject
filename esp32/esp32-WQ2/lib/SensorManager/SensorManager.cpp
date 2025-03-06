@@ -4,6 +4,7 @@
 SensorManager::SensorManager(): oneWire(TEMP_SENSOR_PIN),
                                 tempSensor(&oneWire){
     _data.temperature    = 0.0f;
+    _data.tempTemperature = 0.0f;
 }
 
 void SensorManager::begin() {

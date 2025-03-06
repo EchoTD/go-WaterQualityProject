@@ -20,7 +20,6 @@ private:
     DallasTemperature tempSensor;
 
     void readTemperature();
-
 };
 
 #endif
