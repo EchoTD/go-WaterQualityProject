@@ -3,7 +3,9 @@
 #include "Data.h"
 #include "HTTPManager.h"
 #include <WiFiManager.h>
+#include <Preferences.h>
 
+Preferences preferences;
 WiFiManager wifiManager;
 SensorManager sensorManager;
 HTTPManager httpManager;
@@ -17,15 +19,38 @@ int readingIndex = 0;
 unsigned long lastAveragingTime = 0;
 unsigned long lastSendingTime = 0;
 
-const char* ssid = "TurkTelekom_TP5000_2.4GHz";
+/* const char* ssid = "TurkTelekom_TP5000_2.4GHz";
 const char* password = "X3PHepLwN9Jc";
-const char* serverName = "http://192.168.1.111:8080";
+const char* serverName = "http://192.168.1.111:8080"; */
+
+char ssid[32] = "";
+char password[32] = "";
 
 void setup() {
   Serial.begin(115200);
   sensorManager.begin();
 
-  // wifiManager.resetSettings();
+  loadCredentials(ssid, password);
+
+  if (strlen(ssid) == 0 || strlen(password) == 0) {
+      // No credentials found, start configuration mode
+      if (!wifiManager.autoConnect("ESP32-Config")) {
+          Serial.println("Failed to connect and hit timeout");
+          delay(3000);
+          ESP.restart();
+      }
+      saveCredentials(wifiManager.getSSID().c_str(), wifiManager.getPassword().c_str());
+  } else {
+      WiFi.begin(ssid, password);
+      while (WiFi.status() != WL_CONNECTED) {
+          delay(500);
+          Serial.print(".");
+      }
+      Serial.println("Connected to WiFi");
+      Serial.println(WiFi.localIP());
+  }
+
+  /* // wifiManager.resetSettings();
 
   if (!wifiManager.autoConnect("ESP32-Config")) {
       Serial.println("Failed to connect and hit timeout");
@@ -36,7 +61,7 @@ void setup() {
   Serial.println("Connected to WiFi");
   Serial.println(WiFi.localIP());
 
-  //httpManager.setup(ssid, password);
+  //httpManager.setup(ssid, password); */
 
   for (int i = 0; i < maxReadings; i++) {
     temperatureReadings[i] = 0.0f;
@@ -85,4 +110,18 @@ void loop() {
 
     lastSendingTime = currentTime;
   }
+}
+
+void saveCredentials(const char* ssid, const char* password) {
+    preferences.begin("wifi", false);
+    preferences.putString("ssid", ssid);
+    preferences.putString("password", password);
+    preferences.end();
+}
+
+void loadCredentials(char* ssid, char* password) {
+    preferences.begin("wifi", false);
+    strcpy(ssid, preferences.getString("ssid", "").c_str());
+    strcpy(password, preferences.getString("password", "").c_str());
+    preferences.end();
 }
