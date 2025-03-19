@@ -2,7 +2,9 @@
 #include "SensorManager.h"
 #include "Data.h"
 #include "HTTPManager.h"
+#include <WiFiManager.h>
 
+WiFiManager wifiManager;
 SensorManager sensorManager;
 HTTPManager httpManager;
 
@@ -23,7 +25,18 @@ void setup() {
   Serial.begin(115200);
   sensorManager.begin();
 
-  httpManager.setup(ssid, password);
+  // wifiManager.resetSettings();
+
+  if (!wifiManager.autoConnect("ESP32-Config")) {
+      Serial.println("Failed to connect and hit timeout");
+      delay(3000);
+      ESP.restart();
+  }
+
+  Serial.println("Connected to WiFi");
+  Serial.println(WiFi.localIP());
+
+  //httpManager.setup(ssid, password);
 
   for (int i = 0; i < maxReadings; i++) {
     temperatureReadings[i] = 0.0f;
