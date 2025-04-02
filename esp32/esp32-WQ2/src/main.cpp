@@ -1,127 +1,92 @@
 #include <Arduino.h>
 #include "SensorManager.h"
-#include "Data.h"
-#include "HTTPManager.h"
+#include "MQTTManager.h"
 #include <WiFiManager.h>
 #include <Preferences.h>
 
-Preferences preferences;
-WiFiManager wifiManager;
-SensorManager sensorManager;
-HTTPManager httpManager;
+/*---CONFIG---*/
+const char* mqttServer = "broker.hivemq.com";
+const int mqttPort = 1883;
 
-const unsigned long averagingInterval = 5000;
-const unsigned long sendingInterval = 5000;
-const int maxReadings = 10;
+const unsigned long SENSOR_READ_INTERVAL = 500;  // Read every 500ms
+const unsigned long MQTT_SEND_INTERVAL = 5000;   // Send every 5s
+const int MAX_READINGS = 10;
 
-float temperatureReadings[maxReadings];
+// Circular buffers for each sensor
+float tempReadings[MAX_READINGS] = {0};
+//float tdsReadings[MAX_READINGS] = {0};
+
 int readingIndex = 0;
-unsigned long lastAveragingTime = 0;
-unsigned long lastSendingTime = 0;
+unsigned long lastSensorReadTime = 0;
+unsigned long lastMqttSendTime = 0;
 
-/* const char* ssid = "TurkTelekom_TP5000_2.4GHz";
-const char* password = "X3PHepLwN9Jc";
-const char* serverName = "http://192.168.1.111:8080"; */
+Preferences preferences;
+SensorManager sensorManager;
+MQTTManager mqttManager(mqttServer, mqttPort);
 
-char ssid[32] = "";
-char password[32] = "";
+void readSensorData();
+void sendAveragedData();
+float calculateAverage(float* buffer, int size);
+void resetReadings();
 
 void setup() {
   Serial.begin(115200);
   sensorManager.begin();
-
-  loadCredentials(ssid, password);
-
-  if (strlen(ssid) == 0 || strlen(password) == 0) {
-      // No credentials found, start configuration mode
-      if (!wifiManager.autoConnect("ESP32-Config")) {
-          Serial.println("Failed to connect and hit timeout");
-          delay(3000);
-          ESP.restart();
-      }
-      saveCredentials(wifiManager.getSSID().c_str(), wifiManager.getPassword().c_str());
-  } else {
-      WiFi.begin(ssid, password);
-      while (WiFi.status() != WL_CONNECTED) {
-          delay(500);
-          Serial.print(".");
-      }
-      Serial.println("Connected to WiFi");
-      Serial.println(WiFi.localIP());
-  }
-
-  /* // wifiManager.resetSettings();
-
-  if (!wifiManager.autoConnect("ESP32-Config")) {
-      Serial.println("Failed to connect and hit timeout");
-      delay(3000);
-      ESP.restart();
-  }
-
-  Serial.println("Connected to WiFi");
-  Serial.println(WiFi.localIP());
-
-  //httpManager.setup(ssid, password); */
-
-  for (int i = 0; i < maxReadings; i++) {
-    temperatureReadings[i] = 0.0f;
-  }
-
+  mqttManager.begin();
   Serial.println("System Initialized.");
 }
 
 void loop() {
-  unsigned long currentTime = millis();
+  mqttManager.loop();
 
-  if (currentTime - lastAveragingTime >= averagingInterval / maxReadings) {
+  Serial.println(WiFi.localIP());
+  
+  readSensorData();
+  sendAveragedData();
+}
+
+void readSensorData() {
+  if (millis() - lastSensorReadTime >= SENSOR_READ_INTERVAL) {
     sensorManager.update();
     SensorData data = sensorManager.getSensorData();
-
-    temperatureReadings[readingIndex] = data.temperature;
-    readingIndex = (readingIndex + 1) % maxReadings;  // Circular buffer logic
-
-    lastAveragingTime = currentTime;
-  }
-
-  if (currentTime - lastSendingTime >= sendingInterval) {
-    float sum = 0.0f;
-    int count = 0;
-
-    for (int i = 0; i < maxReadings; i++) {
-      if (temperatureReadings[i] != 0.0f) {
-        sum += temperatureReadings[i];
-        count++;
-      }
-    }
-
-    if (count > 0) {
-      float averageTemperature = sum / count;
-
-      Serial.print(">avg_temp_c:");
-      Serial.println(averageTemperature);
-
-      httpManager.echoPacket(serverName, averageTemperature);
-
-      for (int i = 0; i < maxReadings; i++) {
-        temperatureReadings[i] = 0.0f;
-      }
-      readingIndex = 0;
-    }
-
-    lastSendingTime = currentTime;
+    
+    tempReadings[readingIndex] = data.temperature;
+    //tdsReadings[readingIndex] = data.tds;
+    
+    readingIndex = (readingIndex + 1) % MAX_READINGS;
+    lastSensorReadTime = millis();
   }
 }
 
-void saveCredentials(const char* ssid, const char* password) {
-    preferences.begin("wifi", false);
-    preferences.putString("ssid", ssid);
-    preferences.putString("password", password);
-    preferences.end();
+void sendAveragedData() {
+  if (millis() - lastMqttSendTime >= MQTT_SEND_INTERVAL) {
+    float avgTemp = calculateAverage(tempReadings, MAX_READINGS);
+    //float avgTds = calculateAverage(tdsReadings, MAX_READINGS);
+
+    // Send data via MQTT
+    if (!isnan(avgTemp))      mqttManager.sendData("temperature", &avgTemp, 1);
+    //if (!isnan(avgTds))       mqttManager.sendData("tds", &avgTds, 1);
+
+    // Reset buffers
+    resetReadings();
+    lastMqttSendTime = millis();
+  }
 }
 
-void loadCredentials(char* ssid, char* password) {
-    preferences.begin("wifi", false);
-    strcpy(ssid, preferences.getString("ssid", "").c_str());
-    strcpy(password, preferences.getString("password", "").c_str());
-    preferences.end();
+float calculateAverage(float* buffer, int size) {
+  float sum = 0;
+  int validReadings = 0;
+  for (int i = 0; i < size; i++) {
+    if (!isnan(buffer[i])) {  // Skip NaN values
+      sum += buffer[i];
+      validReadings++;
+    }
+  }
+  return (validReadings > 0) ? sum / validReadings : NAN;
+}
+
+void resetReadings() {
+  memset(tempReadings, 0, sizeof(tempReadings));
+  //memset(tdsReadings, 0, sizeof(tdsReadings));
+  readingIndex = 0;
 }
