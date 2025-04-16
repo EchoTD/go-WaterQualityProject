@@ -9,11 +9,10 @@ MQTTManager::MQTTManager(const char* mqttServer, int mqttPort,
     _mqttClient(_wifiClient) {}
 
 void MQTTManager::begin() {
-  _prefs.begin("wifi-creds");     // Initialize NVS
+  _prefs.begin("wifi-creds");
 
-  // Try to connect using stored WiFi credentials
   if (!connectWiFi()) {
-    startAPMode();                // Fallback to AP if WiFi fails
+    startAPMode();
   }
   _mqttClient.setServer(_mqttServer, _mqttPort);
   connectMQTT();
@@ -40,13 +39,12 @@ void MQTTManager::loop() {
   _mqttClient.loop();
 }
 
-// --- Private Methods ---
 bool MQTTManager::connectWiFi() {
   String ssid = _prefs.getString("ssid", "");
   String password = _prefs.getString("password", "");
 
   if (ssid.isEmpty() || password.isEmpty()) {
-    return false;  // No credentials stored
+    return false;
   }
 
   WiFi.begin(ssid.c_str(), password.c_str());
@@ -59,15 +57,12 @@ bool MQTTManager::connectWiFi() {
 
 void MQTTManager::startAPMode() {
   WiFiManager wifiManager;
-  wifiManager.setTimeout(180);  // 3-minute timeout
 
-  // Custom AP name (default is "ESP32-AP")
-  if (!wifiManager.startConfigPortal("ESP32-Sensor")) {
+  if (!wifiManager.startConfigPortal("ESP32-WQ-Sensor")) {
     Serial.println("Failed to configure WiFi. Restarting...");
     ESP.restart();
   }
 
-  // Save credentials to NVS if connected
   _prefs.putString("ssid", WiFi.SSID());
   _prefs.putString("password", WiFi.psk());
   Serial.println("WiFi credentials saved.");

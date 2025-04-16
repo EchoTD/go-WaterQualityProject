@@ -8,11 +8,10 @@
 const char* mqttServer = "broker.hivemq.com";
 const int mqttPort = 1883;
 
-const unsigned long SENSOR_READ_INTERVAL = 500;  // Read every 500ms
-const unsigned long MQTT_SEND_INTERVAL = 5000;   // Send every 5s
+const unsigned long SENSOR_READ_INTERVAL = 500;
+const unsigned long MQTT_SEND_INTERVAL = 5000;
 const int MAX_READINGS = 10;
 
-// Circular buffers for each sensor
 float tempReadings[MAX_READINGS] = {0};
 //float tdsReadings[MAX_READINGS] = {0};
 
@@ -67,7 +66,6 @@ void sendAveragedData() {
     if (!isnan(avgTemp))      mqttManager.sendData("temperature", &avgTemp, 1);
     //if (!isnan(avgTds))       mqttManager.sendData("tds", &avgTds, 1);
 
-    // Reset buffers
     resetReadings();
     lastMqttSendTime = millis();
   }
@@ -77,7 +75,7 @@ float calculateAverage(float* buffer, int size) {
   float sum = 0;
   int validReadings = 0;
   for (int i = 0; i < size; i++) {
-    if (!isnan(buffer[i])) {  // Skip NaN values
+    if (!isnan(buffer[i])) {
       sum += buffer[i];
       validReadings++;
     }

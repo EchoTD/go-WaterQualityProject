@@ -3,17 +3,17 @@
 
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <WiFiManager.h>          // Install via PlatformIO: tzapu/WiFiManager
-#include <Preferences.h>          // For NVS storage
+#include <WiFiManager.h>
+#include <Preferences.h>
 
 class MQTTManager {
 public:
   MQTTManager(const char* mqttServer, int mqttPort, 
               const char* mqttUser = "", const char* mqttPassword = "");
   
-  void begin();                   // Starts WiFi + MQTT (with AP fallback)
+  void begin();
   bool sendData(const char* sensorType, float data[], int dataSize);
-  void loop();                    // Maintain MQTT connection
+  void loop();
 
 private:
   const char* _mqttServer;
